@@ -3,6 +3,7 @@ package d2s.historyfiller;
 import java.util.ArrayList;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
@@ -35,24 +36,35 @@ public class SheduledMatchesRequester {
 	
 	 */
 	
+	// TODO for some reason runs 5-6 times a minute - ie any all possible times from *0**** to *1****, 
+	// currently having Thread.sleep(60000); in there, researching sptring to fix later
 	@Scheduled(cron = "* 0 * * * *")	// TODO write cron to .properies to be able to change the period more dynamically
 	public void getRecentMatchesIDs() throws InterruptedException {
 		
-		ArrayList<Long> freshIDs = rest.getForObject("http://d2sprotracker/parse", ArrayList.class);
-		System.out.println(freshIDs.size() + " matches");
-
-		rest.postForObject("http://d2shistory/notice", freshIDs, ArrayList.class);
+		ResponseEntity<long[]> freshIDsEntity = rest.getForEntity("http://d2sprotracker/parse", long[].class);
+		var freshIDs = freshIDsEntity.getBody();
 		
+		System.out.println(freshIDs.length + " matches");
+
+		rest.put("http://d2shistory/notice", freshIDs);
+		Thread.sleep(60000);
 	}
 	
-	@Scheduled(cron = "*/5 */1 * * *")	// TODO write cron to .properies to be able to change the period more dynamically
+	// TODO for some reason runs 20-30 times a minute - ie any all possible times from *5**** to *6****, 
+	// currently having Thread.sleep(60000); in there, researching sptring to fix later
+	@Scheduled(cron = "* 5 * * * *")	// TODO write cron to .properies to be able to change the period more dynamically
 	public void updateUnparsed() throws InterruptedException {
-		ArrayList<Long> unparsedIDs = rest.getForObject("http://d2shistory/unparsed", ArrayList.class);
+		long[] unparsedIDs = rest.getForObject("http://d2shistory/unparsed", long[].class);
 		
-		ArrayList<Match> parsedMatches = new ArrayList<Match>();
+		System.out.println("History asks for " + unparsedIDs.length + " matches");
 		for(long id : unparsedIDs) {
-			parsedMatches.add(rest.getForObject("http://d2stratzparser/" + id, Match.class));
+			Match match = rest.getForObject("http://d2stratzparser/" + id, Match.class);
+			System.out.println("got " + match.toString() );
+//			parsedMatches.add(match);
+			rest.put("http://d2shistory/save", match);
+			System.out.println("parsed " + id);
 		}
+		Thread.sleep(60000);
 	}
 	
 }

@@ -7,33 +7,28 @@ public class Match {
 
 	private long matchId;
 	 
-	private String date;
+	private long date;
 	
 	private String winner;
 	
-//	private String rCarry;
-//	private String rMid;
-//	private String rOfflane;
-//	private String rSoft;
-//	private String rHard;				
-//	private String dCarry;
-//	private String dMid;
-//	private String dOfflane;
-//	private String dSoft;
-//	private String dHard;
-	
 	private ArrayList<String> teamRadiant;
 	private ArrayList<String> teamDire;
+
+	private boolean parsed;
 	
 	public Match() {
 		
+	}
+	
+	public boolean isParsed() {
+		return parsed;
 	}
 
 	public long getMatchId() {
 		return matchId;
 	}
 
-	public String getDate() {
+	public long getDate() {
 		return date;
 	}
 
@@ -53,7 +48,7 @@ public class Match {
 		this.matchId = matchId;
 	}
 
-	public void setDate(String date) {
+	public void setDate(long date) {
 		this.date = date;
 	}
 
@@ -69,12 +64,21 @@ public class Match {
 		this.teamDire = teamDire;
 	}
 
-	public static Match corrupted() {
-		Match corrupted = new Match();
-		corrupted.date = "-1";
-		corrupted.matchId = -1;
-		corrupted.winner = "none";
-		return null;
+	public void setParsed(boolean parsed) {
+		this.parsed = parsed;
 	}
 
+	public static Match corrupted(long id) {
+		Match corrupted = new Match();
+		corrupted.date = -1;
+		corrupted.matchId = id;
+		corrupted.winner = "none";
+		corrupted.setParsed(false);
+		return corrupted;
+	}
+	
+	public String toString() {
+		return "Dota2 match n" + matchId + " played at " + date + " winner: " + winner;
+	}
+	
 }
