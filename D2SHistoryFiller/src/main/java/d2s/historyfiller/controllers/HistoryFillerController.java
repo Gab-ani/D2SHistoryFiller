@@ -27,7 +27,8 @@ public class HistoryFillerController {
 	// manually does one extra update cycle
 	@GetMapping("/update")
 	public String update() throws InterruptedException {
-		requester.getRecentMatchesIDs();
+//		System.out.println(requester.listOfStringsV2.get(0) + " " + requester.listOfStringsV2.get(1) + " " + requester.listOfStringsV2.get(2) + " " + requester.listOfStringsV2.get(requester.listOfStringsV2.size() -1));
+//		requester.getRecentMatchesIDs();
 		requester.updateUnparsed();
 		return "";
 	}
