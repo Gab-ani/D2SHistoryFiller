@@ -1,8 +1,11 @@
 package d2s.historyfiller;
 
 import java.util.ArrayList;
+import java.util.List;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.ResponseEntity;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
@@ -14,6 +17,12 @@ public class SheduledMatchesRequester {
 	
 	@Autowired
 	RestTemplate rest;
+	
+//	@Value("#{${listOfHeroes}}")
+//	private List<String> heroes;
+	
+	@Value("#{${listOfHeroes}}")
+	public List<String> heroes;
 
 	/*
 	Firstly, when we ask www.dota2protracker.com to send us last public matches played by professional players.
@@ -30,29 +39,71 @@ public class SheduledMatchesRequester {
 		
 		3) Periodically we ask history-db-service for the list of still unparsed matches.
 			Note that we get all the matches where parsed = false, so more IDs than we've sent at the 1) stage.
-		4) When we get the list of unparsed matches, we request the data about them stratz.com, pack thist data into List<Match>,
+		4) When we get the list of unparsed matches, we request the data about them stratz.com, pack this data into List<Match>,
 			and send this list to history-db-service to update unparsed matches with their parsed variant (id stays the same so it overwrites automatically).
 	
 	 */
 	
-	@Scheduled(cron = "* 0 * * * *")	// TODO write cron to .properies to be able to change the period more dynamically
-	public void getRecentMatchesIDs() throws InterruptedException {
-		
-		ArrayList<Long> freshIDs = rest.getForObject("http://d2sprotracker/parse", ArrayList.class);
-		System.out.println(freshIDs.size() + " matches");
-
-		rest.postForObject("http://d2shistory/notice", freshIDs, ArrayList.class);
-		
+	// TODO for some reason runs 5-6 times a minute - ie any all possible times from *0**** to *1****, 
+	// currently having Thread.sleep(60000); in there, researching sptring to fix later
+	@Scheduled(cron = "0 0 * * * *")	// TODO write cron to .properies to be able to change the period more dynamically
+	public void cycleHeroes() throws InterruptedException {
+		for(String hero : heroes) {
+			if(hero.equals("Natures Prophet")) {
+				try {
+					getRecentMathcesByHero("Nature's Prophet");
+				} catch (InterruptedException e) {
+					e.printStackTrace();
+				}
+				continue;
+			}
+			try {
+				getRecentMathcesByHero(hero);
+			} catch (InterruptedException e) {
+				e.printStackTrace();
+			}
+		}
 	}
 	
-	@Scheduled(cron = "*/5 */1 * * *")	// TODO write cron to .properies to be able to change the period more dynamically
-	public void updateUnparsed() throws InterruptedException {
-		ArrayList<Long> unparsedIDs = rest.getForObject("http://d2shistory/unparsed", ArrayList.class);
+	public void getRecentMathcesByHero(String hero) throws InterruptedException {
+		ResponseEntity<long[]> freshIDsEntity = rest.getForEntity("http://d2sprotracker/parse/" + hero, long[].class);
+		var freshIDs = freshIDsEntity.getBody();
 		
-		ArrayList<Match> parsedMatches = new ArrayList<Match>();
+		System.out.println("Found " + freshIDs.length + " matches with " + hero);
+
+		rest.put("http://d2shistory/notice", freshIDs);
+		Thread.sleep(5000);
+	}
+	
+//	// TODO for some reason runs 5-6 times a minute - ie any all possible times from *0**** to *1****, 
+//	// currently having Thread.sleep(60000); in there, researching sptring to fix later
+//	@Scheduled(cron = "0 0 * * * *")	// TODO write cron to .properies to be able to change the period more dynamically
+//	public void getRecentMatchesIDs() throws InterruptedException {
+//		
+//		ResponseEntity<long[]> freshIDsEntity = rest.getForEntity("http://d2sprotracker/parse", long[].class);
+//		var freshIDs = freshIDsEntity.getBody();
+//		
+//		System.out.println(freshIDs.length + " matches");
+//
+//		rest.put("http://d2shistory/notice", freshIDs);
+//		Thread.sleep(60000);
+//	}
+	
+	// TODO for some reason runs 20-30 times a minute - ie any all possible times from *5**** to *6****, 
+	// currently having Thread.sleep(60000); in there, researching sptring to fix later
+	@Scheduled(cron = "0 56 * * * *")	// TODO write cron to .properies to be able to change the period more dynamically
+	public void updateUnparsed() throws InterruptedException {
+		long[] unparsedIDs = rest.getForObject("http://d2shistory/unparsed", long[].class);
+		
+		System.out.println("History asks for " + unparsedIDs.length + " matches");
 		for(long id : unparsedIDs) {
-			parsedMatches.add(rest.getForObject("http://d2stratzparser/" + id, Match.class));
+			Match match = rest.getForObject("http://d2stratzparser/" + id, Match.class);
+			System.out.println("got " + match.toString() );
+//			parsedMatches.add(match);
+			rest.put("http://d2shistory/save", match);
+			System.out.println("parsed " + id);
 		}
+		Thread.sleep(60000);
 	}
 	
 }
